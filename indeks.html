@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>e-Portal EzMath</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="w-72 bg-slate-900 text-white p-4 space-y-2">
+      <button onclick="showPage('dashboard')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left hover:bg-white/10" data-page="dashboard">
+        🏠 <span class="font-medium">Dashboard</span>
+      </button>
+      <button onclick="showPage('dashboard2')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left hover:bg-white/10" data-page="dashboard2">
+        📊 <span class="font-medium">Dashboard AI</span>
+      </button>
+    </aside>
+
+    <main class="flex-1">
+      <div id="page-dashboard" class="page p-6 lg:p-8">
+        <h1 class="text-3xl font-bold text-slate-800">Dashboard Utama</h1>
+      </div>
+
+      <div id="page-dashboard2" class="page hidden animate-fade p-6 lg:p-8">
+        <div class="max-w-7xl mx-auto">
+          <h1 class="text-3xl font-bold text-slate-800 mb-6">Dashboard Kehadiran Power 🚀</h1>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-emerald-500 text-white p-6 rounded-2xl">
+              <p>Purata Kehadiran</p>
+              <h2 id="ai-purata" class="text-3xl font-bold">0%</h2>
+            </div>
+            <div class="bg-sky-500 text-white p-6 rounded-2xl">
+              <p>Kelas Terbaik</p>
+              <h2 id="ai-terbaik" class="text-xl font-bold">-</h2>
+            </div>
+            <div class="bg-rose-500 text-white p-6 rounded-2xl">
+              <p>Kelas Kritikal</p>
+              <h2 id="ai-kritikal" class="text-xl font-bold">-</h2>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl shadow mb-8">
+            <h2 class="font-bold mb-4">Trend Kehadiran</h2>
+            <canvas id="chartTrend"></canvas>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl shadow">
+            <h2 class="font-bold mb-4">🏆 Top 3 Kelas</h2>
+            <div id="ai-top3"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const allData = [
+      { tarikh: '2026-01-01', kelas: '5 Amanah', peratus_kehadiran: 94 },
+      { tarikh: '2026-01-02', kelas: '5 Bestari', peratus_kehadiran: 66 },
+      { tarikh: '2026-01-03', kelas: '5 Cerdas', peratus_kehadiran: 78 },
+      { tarikh: '2026-01-04', kelas: '5 Amanah', peratus_kehadiran: 92 },
+      { tarikh: '2026-01-05', kelas: '5 Bestari', peratus_kehadiran: 72, cuti: false },
+      { tarikh: '2026-01-06', kelas: '5 Cerdas', peratus_kehadiran: 81 },
+    ];
+
+    function showPage(page) {
+      document.querySelectorAll('.page').forEach((el) => el.classList.add('hidden'));
+      const target = document.getElementById(`page-${page}`);
+      if (target) target.classList.remove('hidden');
+    }
+
+    function loadDashboardAI() {
+      if (!allData || allData.length === 0) return;
+
+      const valid = allData.filter(d => !d.cuti);
+
+      const avg = valid.reduce((a,b)=>a+b.peratus_kehadiran,0)/valid.length;
+      document.getElementById('ai-purata').textContent = avg.toFixed(1)+"%";
+
+      const kelasMap = {};
+      valid.forEach(d=>{
+        if(!kelasMap[d.kelas]) kelasMap[d.kelas]={total:0,count:0};
+        kelasMap[d.kelas].total += d.peratus_kehadiran;
+        kelasMap[d.kelas].count++;
+      });
+
+      const kelasArr = Object.entries(kelasMap).map(([k,v])=>({
+        kelas:k,
+        avg:v.total/v.count
+      }));
+
+      kelasArr.sort((a,b)=>b.avg-a.avg);
+
+      if(kelasArr.length>0){
+        document.getElementById('ai-terbaik').textContent = kelasArr[0].kelas;
+      }
+
+      const kritikal = kelasArr.filter(k=>k.avg<70);
+      document.getElementById('ai-kritikal').textContent = kritikal.length>0 ? kritikal[0].kelas : "Tiada";
+
+      const top3 = kelasArr.slice(0,3);
+      document.getElementById('ai-top3').innerHTML = top3.map((k,i)=>`
+        <div class="p-3 mb-2 rounded-lg ${i==0?'bg-amber-100':i==1?'bg-slate-100':'bg-orange-100'}">
+          ${i+1}. ${k.kelas} - ${k.avg.toFixed(1)}%
+        </div>
+      `).join('');
+
+      const labels = valid.map(d=>d.tarikh);
+      const data = valid.map(d=>d.peratus_kehadiran);
+
+      const ctx = document.getElementById('chartTrend');
+      if(!ctx) return;
+
+      new Chart(ctx,{
+        type:'line',
+        data:{
+          labels:labels,
+          datasets:[{
+            label:'Trend Kehadiran',
+            data:data,
+            borderWidth:2
+          }]
+        }
+      });
+    }
+
+    const originalShowPage = showPage;
+    showPage = function(page){
+      originalShowPage(page);
+      if(page==='dashboard2'){
+        setTimeout(loadDashboardAI,200);
+      }
+    };
+  </script>
+</body>
+</html>
